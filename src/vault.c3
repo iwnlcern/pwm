@@ -3,18 +3,7 @@ import std::io;
 import db;
 import libc;
 
-fn int open(ZString filename, db::Sqlite3 **db) @local {
-
-    int rc = db::sqlite3_open(filename, db);
-
-    if (rc) {
-        io::eprintf("Can't open database: %s\n", db::sqlite3_errmsg(*db));
-        return rc;
-    } else {
-        io::eprintf("Opened successfully\n");
-    }
-    return rc;
-}
+extern fn int sqlite3_key(db::Sqlite3 *db, void *key, int key_len);
 
 fn void close_with_error(db::Sqlite3 *db, String msg) @local {
     io::eprintf("%s: %s\n", msg, db::sqlite3_errmsg(db));
@@ -22,15 +11,34 @@ fn void close_with_error(db::Sqlite3 *db, String msg) @local {
     libc::exit(1);
 }
 
-fn int create_vault(ZString filename) {
-    db::Sqlite3 *db = null;
+fn int open(String master_pw,
+            ZString filename,
+            db::Sqlite3 **db) @local {
 
-    int rc = db::sqlite3_open(filename, &db);
-    if (rc != db::SQLITE_OK) {
+    int rc = db::sqlite3_open(filename, db);
+
+    if (rc) {
+        io::eprintf("Can't open database: %s\n", db::sqlite3_errmsg(*db));
         return rc;
     }
 
-    // C3 needs an explicit cast from String literal to ZString.
+    void *key_ptr = master_pw.ptr;
+    int key_len = (int) master_pw.len;
+
+    rc = sqlite3_key(*db, key_ptr, key_len);
+    if (rc != db::SQLITE_OK) {
+        close_with_error(*db, "Wrong password");
+    }
+
+    return rc;
+}
+
+
+fn int create_vault(String master_pw, ZString filename) {
+    db::Sqlite3 *db = null;
+
+    int rc = open(master_pw, filename, &db);
+
     ZString sql = (ZString)
         "CREATE TABLE IF NOT EXISTS passwords ("
         "   site     TEXT NOT NULL,"
@@ -47,14 +55,13 @@ fn int create_vault(ZString filename) {
         return rc;
     }
 
-    // Actually run the CREATE TABLE statement
     rc = db::sqlite3_step(stmt);
 
     int rc_finalize = db::sqlite3_finalize(stmt);
 
     db::sqlite3_close(db);
 
-    if (rc != db::SQLITE_DONE || rc_finalize != db::SQLITE_OK) {
+    if ( rc_finalize != db::SQLITE_OK) {
         io::eprintf("Error finalizing or executing statement while creating table");
         return rc;
     }
@@ -62,10 +69,13 @@ fn int create_vault(ZString filename) {
     return db::SQLITE_OK;
 }
 
-
-fn int update_password(ZString filename, ZString site, ZString acct, ZString pw) {
+fn int update_password(String master_pw,
+                       ZString filename,
+                       ZString site,
+                       ZString acct,
+                       ZString pw) {
     db::Sqlite3 *db;
-    int rc = open(filename, &db);
+    int rc = open(master_pw, filename, &db);
     ZString sql = (ZString)
         "INSERT INTO passwords (site, username, password)"
         "VALUES( ?1, ?2, ?3 )"
@@ -97,9 +107,12 @@ fn int update_password(ZString filename, ZString site, ZString acct, ZString pw)
     return db::SQLITE_OK;
 }
 
-fn int return_password(ZString filename, ZString site, ZString acct) {
+fn int return_password(String master_pw,
+                       ZString filename,
+                       ZString site,
+                       ZString acct) {
     db::Sqlite3 *db;
-    int rc = open(filename, &db);
+    int rc = open(master_pw, filename, &db);
     ZString sql = (ZString)
         "SELECT site, username, password FROM passwords WHERE site = ?1 AND username = ?2";
     db::Sqlite3Stmt *stmt;

@@ -1,0 +1,45 @@
+{
+  "provides": "sqlite3",
+  "targets": {
+    "macos-aarch64": {
+      "linked-libraries": [
+        "sqlcipher"
+      ]
+    },
+    "macos-x64": {
+      "linked-libraries": [
+        "sqlcipher"
+      ]
+    },
+    "linux-x64": {
+      "linked-libraries": [
+        "sqlcipher"
+      ]
+    },
+    "linux-x86": {
+      "linked-libraries": [
+        "sqlcipher"
+      ]
+    },
+    "openbsd-x86": {
+      "linked-libraries": [
+        "sqlcipher"
+      ]
+    },
+    "openbsd-x64": {
+      "linked-libraries": [
+        "sqlcipher"
+      ]
+    },
+    "freebsd-x64": {
+      "linked-libraries": [
+        "sqlcipher"
+      ]
+    },
+    "freebsd-x86": {
+      "linked-libraries": [
+        "sqlcipher"
+      ]
+    }
+  }
+}
