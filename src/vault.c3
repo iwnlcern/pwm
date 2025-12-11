@@ -69,11 +69,11 @@ fn int create_vault(String master_pw, ZString filename) {
     return db::SQLITE_OK;
 }
 
-fn int update_password(String master_pw,
-                       ZString filename,
-                       ZString site,
-                       ZString acct,
-                       ZString pw) {
+fn int update_credentials(String master_pw,
+                          ZString filename,
+                          ZString site,
+                          ZString acct,
+                          ZString pw) {
     db::Sqlite3 *db;
     int rc = open(master_pw, filename, &db);
     ZString sql = (ZString)
@@ -107,10 +107,18 @@ fn int update_password(String master_pw,
     return db::SQLITE_OK;
 }
 
-fn int return_password(String master_pw,
-                       ZString filename,
-                       ZString site,
-                       ZString acct) {
+fn int remove_credentials(String master_pw,
+                          ZString filename,
+                          ZString site,
+                          ZString acct) {
+    //TODO: complete implementation
+    return db::SQLITE_OK;
+}
+
+fn int return_credentials(String master_pw,
+                          ZString filename,
+                          ZString site,
+                          ZString acct) {
     db::Sqlite3 *db;
     int rc = open(master_pw, filename, &db);
     ZString sql = (ZString)

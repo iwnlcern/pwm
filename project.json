@@ -1,29 +1,21 @@
 {
   "langrev": "1",
-  "warnings": [ "no-unused" ],
-
-  "dependency-search-paths": [ "lib" ],
-  "dependencies": [ "sqlite3" ],
-
-  "linker-search-paths": [
-    "/opt/homebrew/opt/sqlcipher/lib"
-  ],
-  "linked-libraries": [ "sqlcipher" ],
-
-  "authors": [ "Jack Li <li.jack.services@gmail.com>" ],
+  "warnings":  [ "no-unused" ],
+  "dependency-search-paths":  [ "lib" ],
+  "dependencies":  [ "sqlite3" ],
+  "linker-search-paths":  [ "/opt/homebrew/opt/sqlcipher/lib" ],
+  "linked-libraries":  [ "sqlcipher" ],
+  "authors":  [ "Jack Li <li.jack.services@gmail.com>" ],
   "version": "0.1.0",
-
-  "sources": [ "src/**" ],
-  "test-sources": [ "test/**" ],
+  "sources":  [ "src/**" ],
+  "test-sources":  [ "test/**" ],
   "build-dir": "build",
   "output": "build",
-
   "targets": {
     "pwm": {
       "type": "executable"
     }
   },
-
   "cpu": "generic",
   "opt": "O0"
 }
