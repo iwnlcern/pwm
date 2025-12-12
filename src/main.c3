@@ -3,9 +3,52 @@ module pwm;
 import std::io;
 import libc;
 import misc::argparse;
+import misc::termios;
 
 import pwm::vault;
 import db;
+
+fn String get_secure_pw(ZString msg) {
+    termios::Termios oflags, nflags;
+    int fd = libc::STDIN_FD;
+    
+    if ( termios::tcgetattr(fd, &oflags) != 0) {
+        io::eprintf("tcgetattr failed");
+        libc::exit(1);
+    }
+
+    nflags = oflags;
+    nflags.c_lflag &= ~termios::ECHO;
+    nflags.c_lflag |= termios::ECHONL;
+
+    if (termios::tcsetattr(fd, termios::TCSANOW, &nflags) != 0) {
+        io::eprintf("tcsetattr (disable echo) failed");
+        libc::exit(1);
+    }
+
+    defer {
+        if (termios::tcsetattr(fd, termios::TCSANOW, &oflags) != 0) {
+            io::eprint("tcsetattr (restore) failed");
+        }
+    }
+
+    io::printf(msg.str_view());
+    char[64] buf;
+
+    if (libc::fgets(&buf[0], buf.len, libc::stdin()) == null) {
+        io::eprintfn("fgets failed reading password");
+        libc::exit(1);
+    }
+
+    String str_password = ((ZString) &buf[0]).str_view();
+
+    if (str_password.len > 0 && str_password[str_password.len - 1] == '\n') {
+        str_password = str_password[..str_password.len - 1];
+    }
+
+    return str_password.tcopy();
+}
+
 
 fn ZString? get_db_path(String db_name) {
     ZString home = libc::getenv("HOME");
@@ -61,7 +104,6 @@ fn int main(String[] args)
     Credentials credentials = {
         .site = "",
         .user = "",
-        .pw   = "",
     };
 
     argparse::ArgParse agp = {
@@ -104,7 +146,6 @@ fn int main(String[] args)
 
             argparse::group_opt("Entry selection"),
 
-            // These three just write directly into fields of `credentials`
             {
                 .long_name  = "site",
                 .value      = &credentials.site,
@@ -130,7 +171,6 @@ fn int main(String[] args)
         return 1;
     }
 
-    // Check which action was requested
     int num_actions =
         (do_init   ? 1 : 0) +
         (do_update ? 1 : 0) +
@@ -147,8 +187,7 @@ fn int main(String[] args)
         return 1;
     }
 
-    // TODO: read master password from TTY instead of hardcoding
-    String master_pw = "password";
+    String master_pw = get_secure_pw("Enter database password: ");
 
     if (do_init) {
         ZString db_path = make_home_dir("pwm_db")!!;
@@ -158,24 +197,21 @@ fn int main(String[] args)
         return 0;
     }
 
-    // All other actions use existing path
     ZString db_path = get_db_path("pwm_db")!!;
 
     if (do_update) {
-        // TODO: use credentials.pw instead of hard-coded once you add a --pw flag or prompt
         if (vault::update_credentials(
                 master_pw,
                 db_path,
                 (ZString) credentials.site,
                 (ZString) credentials.user,
-                "password") != db::SQLITE_OK) {
+                get_secure_pw("Enter credential password: ")) != db::SQLITE_OK) {
             return 1;
         }
         return 0;
     }
 
     if (do_remove) {
-        // Adjust signature to match your actual vault::remove_credentials
         if (vault::remove_credentials(
                 master_pw,
                 db_path,
@@ -187,7 +223,6 @@ fn int main(String[] args)
     }
 
     if (do_get) {
-        // Adjust signature to match your actual vault::return_credentials
         if (vault::return_credentials(
                 master_pw,
                 db_path,
@@ -218,4 +253,3 @@ fn int main(String[] args)
 //    if ( rc != db::SQLITE_OK) {
 //        return 1;
 //    }
-

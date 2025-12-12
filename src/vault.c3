@@ -73,7 +73,8 @@ fn int update_credentials(String master_pw,
                           ZString filename,
                           ZString site,
                           ZString acct,
-                          ZString pw) {
+                          String  spw) {
+    ZString pw = (ZString) spw;
     db::Sqlite3 *db;
     int rc = open(master_pw, filename, &db);
     ZString sql = (ZString)
