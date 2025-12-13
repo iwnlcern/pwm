@@ -4,6 +4,7 @@ import std::io;
 import libc;
 import misc::argparse;
 import misc::termios;
+import misc::secure;
 
 import pwm::vault;
 import db;
@@ -34,6 +35,7 @@ fn String get_secure_pw(ZString msg) {
 
     io::printf(msg.str_view());
     char[64] buf;
+    secure::explicit_bzero(&buf[0], 64);
 
     if (libc::fgets(&buf[0], buf.len, libc::stdin()) == null) {
         io::eprintfn("fgets failed reading password");
@@ -41,6 +43,7 @@ fn String get_secure_pw(ZString msg) {
     }
 
     String str_password = ((ZString) &buf[0]).str_view();
+    defer secure::wipe_string(str_password);
 
     if (str_password.len > 0 && str_password[str_password.len - 1] == '\n') {
         str_password = str_password[..str_password.len - 1];
@@ -188,6 +191,7 @@ fn int main(String[] args)
     }
 
     String master_pw = get_secure_pw("Enter database password: ");
+    defer secure::wipe_string(master_pw);
 
     if (do_init) {
         ZString db_path = make_home_dir("pwm_db")!!;

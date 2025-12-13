@@ -47,4 +47,4 @@ extern fn int sqlite3_bind_int64(Sqlite3Stmt* stmt, long value);
 extern fn ZString sqlite3_errmsg(Sqlite3* db);
 extern fn ZString sqlite3_column_text(Sqlite3Stmt* stmt, int iCol);
 extern fn long    sqlite3_column_int64(Sqlite3Stmt* stmt, int iCol);
-
+extern fn void    sqlite3_free(void* b);

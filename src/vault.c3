@@ -26,13 +26,20 @@ fn int open(String master_pw,
     int key_len = (int) master_pw.len;
 
     rc = sqlite3_key(*db, key_ptr, key_len);
+
+    ZString check_sql = "PRAGMA cipher_integrity_check;";
+    ZString err_msg = null;
+
+    rc = db::sqlite3_exec(*db, check_sql, null, null, &err_msg);
     if (rc != db::SQLITE_OK) {
+        if (err_msg != null) {
+            io::eprintf("Wrong password or corrupt DB: %s\n", err_msg);
+            db::sqlite3_free(err_msg);
+        }
         close_with_error(*db, "Wrong password");
     }
-
     return rc;
 }
-
 
 fn int create_vault(String master_pw, ZString filename) {
     db::Sqlite3 *db = null;
@@ -112,7 +119,31 @@ fn int remove_credentials(String master_pw,
                           ZString filename,
                           ZString site,
                           ZString acct) {
-    //TODO: complete implementation
+    db::Sqlite3 *db;
+    int rc = open(master_pw, filename, &db);
+    ZString sql = (ZString)
+        "DELETE FROM passwords WHERE site == ?1 AND username == ?2";
+
+    db::Sqlite3Stmt *stmt = null;
+    
+    rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
+    if (rc != db::SQLITE_OK) {
+        close_with_error(db, "Error preparing statement while deleting credentials");
+        return rc;
+    }
+
+    db::sqlite3_bind_text(stmt, 1, site, -1, null);
+    db::sqlite3_bind_text(stmt, 2, acct, -1, null);
+
+    rc = db::sqlite3_step(stmt);
+    int rc_finalize = db::sqlite3_finalize(stmt);
+    db::sqlite3_close(db);
+
+    if (rc != db::SQLITE_DONE || rc_finalize != db::SQLITE_OK) {
+        io::eprintf("Error finalizing or executing statement while deleting credentials");
+        return rc;
+    }
+
     return db::SQLITE_OK;
 }
 
@@ -137,6 +168,7 @@ fn int return_credentials(String master_pw,
 
     rc = db::sqlite3_step(stmt);
     if (rc == db::SQLITE_ROW) {
+        // TODO: Make secure output of password.
         io::printf("%s, %s, %s\n",
                    db::sqlite3_column_text(stmt, 0),
                    db::sqlite3_column_text(stmt, 1),
@@ -155,4 +187,3 @@ fn int return_credentials(String master_pw,
 
     return db::SQLITE_OK;
 }
-
