@@ -99,6 +99,7 @@ Examples:
 Contributions are welcome—see `CONTRIBUTING.md` for setup and PR guidance. Community expectations are covered in `CODE_OF_CONDUCT.md`. To report security issues privately, follow `SECURITY.md`.
 
 ## TODOs:
+- Add tests (PLS)
 - Looking to display all usernames for a given site.
 - Maybe also store security questions and answers.
 - Perhaps a GUI interface sometime in the future when c3 is more mature.
