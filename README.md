@@ -10,7 +10,7 @@ Note that PWM is best protected against shoulder peeking, screen recorders, and 
 **It goes without saying that if someone wants your data bad enough, they will be able to find a way to get it.** ***USE AT YOUR OWN RISK.***
 
 ## Data & security notes
-- Known vulnerablity: core dumps
+- Known vulnerablity: core dumps (fix coming soon)
 - Default vault path: `~/Documents/pwm/pwm_db.db` (override with `--db-name`/`--db-path`). Each vault has its own password; losing it means losing access to that vault.
 - Master registry lives at `~/Documents/pwm/pwm_master_db.db`, only stores vault names/paths, and is unencrypted.
 - Encryption relies on SQLCipher via `sqlite3_key`; integrity is checked with `PRAGMA cipher_integrity_check`.
