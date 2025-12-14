@@ -1,4 +1,8 @@
 // Copyright (c) 2025 Alex Veden <i@alexveden.com>. All rights reserved.
+// Use of this source code is governed by the MIT license,
+// a copy of which can be found in the LICENSE_STDLIB file.
+//
+// Original source can be found at <https://github.com/alexveden/c3tools/blob/main/lib/c3lib/argparse/argparse.c3>
 // Updated for current C3 v0.7.7 by Jack Li <li.jack.services@gmail.com> and Open-AI's codex (syntax + faulting + any + macros)
 // Last update: 12/10/2025 (mm/dd/yyyy)
 //
