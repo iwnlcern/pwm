@@ -93,5 +93,5 @@ Examples:
 - Clipboard clearing is best-effort via a background process; behavior depends on OS clipboard tooling being present.
 
 ## Acknowledgements
-- Codex and Claude for documentation (I cba to write, easier to read and verify) and boiler-plate.
-- Alex Veden (<i@alexveden.com>) for argparse.c3 original src.
+- CODEX 5.1 and CLAUDE OPUS 4.5 for documentation (I cba to write, easier to read and verify) and boiler-plate.
+- Alex Veden (<i@alexveden.com>) for argparse.c3 original src and CODEX for updates.
