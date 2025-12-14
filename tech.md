@@ -31,11 +31,16 @@ The entry point that orchestrates all operations:
 Key functions:
 | Function | Purpose |
 |----------|---------|
-| `get_secure_pw()` | Reads password with echo disabled |
+| `get_secure_pw()` | Reads password with echo disabled; returns `String?` (faults on error) |
 | `get_db_path()` | Constructs default DB path from name |
 | `make_home_dir()` | Creates `~/Documents/pwm/` if needed |
 | `filename_from_path()` | Extracts filename from a path |
 | `enforce_db_name_matches_filename()` | Validates name/path consistency |
+
+**Faults**:
+- `SECURE_PW_TCGETATTR_FAILED`: Failed to get terminal attributes
+- `SECURE_PW_TCSETATTR_FAILED`: Failed to set terminal attributes (disable echo)
+- `SECURE_PW_FGETS_FAILED`: Failed to read password from stdin
 
 ### db.c3 (module: `db`)
 
@@ -54,8 +59,11 @@ This module contains no application logic - it's purely a Foreign Function Inter
 Core database operations for credential and registry management:
 
 **Database Opening**:
-- `open_plain()`: Opens unencrypted databases (for the master registry)
-- `open()`: Opens encrypted databases with SQLCipher key derivation
+- `open_plain()`: Opens unencrypted databases (for the master registry); closes and nulls handle on failure
+- `open()`: Opens encrypted databases with SQLCipher key derivation; enables `PRAGMA secure_delete=ON`
+- `close_with_error()`: Closes database, nulls the handle pointer, and returns error code
+
+All database functions check return codes from `open()`/`open_plain()` and bail immediately on failure to prevent use-after-close bugs.
 
 **Credential Operations**:
 | Function | SQL Operation |
@@ -105,13 +113,14 @@ Security-critical utilities:
 **Clipboard Operations**:
 - `copy_to_clipboard()`: Platform-specific clipboard write
   - macOS: `pbcopy`
-  - Linux: `wl-copy` (preferred) or `xclip` (fallback)
+  - Linux: `wl-copy` (preferred) or `xclip -selection clipboard` (fallback)
   - Windows: `clip`
-- `schedule_clipboard_clear()`: Spawns background process to clear clipboard after 10 seconds
+- `schedule_clipboard_clear()`: Spawns a fully detached background process to clear clipboard after 10 seconds (does not block main process)
 - `output_pw()`: Combines copy + scheduled clear
 
-The clipboard clear uses platform-specific approaches:
-- macOS/Linux: `sh -c "sleep 10; printf '' | <clipboard-tool> &"`
+The clipboard clear spawns a detached subshell so the main process exits immediately:
+- macOS: `sh -c "(sleep 10; printf '' | pbcopy) >/dev/null 2>&1 &"`
+- Linux: `sh -c "(sleep 10; printf '' | wl-copy || printf '' | xclip -selection clipboard) &"`
 - Windows: PowerShell `Start-Job` with `Start-Sleep`
 
 ### termios.c3 (module: `misc::termios`)
@@ -154,24 +163,35 @@ A complete argument parsing library (authored by Alex Veden, original [here](htt
 
 ### Encryption
 - Vaults use SQLCipher with `sqlite3_key()` for encryption
+- `sqlite3_key()` return code is checked to detect key setup failures
 - Integrity verified via `PRAGMA cipher_integrity_check`
 - Each vault has an independent password
+- `PRAGMA secure_delete=ON` overwrites deleted data with zeros to prevent recovery
 
 ### Memory Handling
-- Passwords read into fixed-size stack buffers
+- Passwords read into fixed-size stack buffers (never heap-allocated unnecessarily)
+- Credential passwords bound with explicit length to avoid extra heap copies
 - `explicit_bzero()` wipes sensitive data
 - `defer` blocks ensure cleanup on all exit paths
 - `@noinline` prevents compiler from optimizing out wipes
+- No `exit()` calls in library code; errors propagate upward so `defer` cleanup runs
+
+### Database Handle Safety
+- All `open()`/`open_plain()` return codes checked before using handle
+- `close_with_error()` nulls the handle pointer after closing
+- Failed `sqlite3_open()` calls close and null the handle to prevent resource leaks
 
 ### Password Input
 - Terminal echo disabled via `tcsetattr()` with `~ECHO`
 - Original terminal state restored via `defer` block
 - Newline echo enabled (`ECHONL`) for UX
+- `get_secure_pw()` returns faults instead of calling `exit()` to ensure cleanup
 
 ### Clipboard Security
 - Passwords never printed to stdout
 - Automatic clipboard clear after 10 seconds
-- Background process handles delayed clear
+- Detached background process handles delayed clear (main process exits immediately)
+- Linux: explicitly targets clipboard selection (not primary selection)
 
 ## Build Configuration
 
@@ -190,11 +210,11 @@ c3c run pwm -- -h  # Run with args
 
 | Platform | Clipboard Tool | Clear Method |
 |----------|----------------|--------------|
-| macOS | `pbcopy` | `sh -c "sleep 10; printf '' \| pbcopy &"` |
-| Linux | `wl-copy` or `xclip` | `sh -c "sleep 10; printf '' \| <tool> &"` |
+| macOS | `pbcopy` | `sh -c "(sleep 10; printf '' \| pbcopy) &"` |
+| Linux | `wl-copy` or `xclip -selection clipboard` | `sh -c "(sleep 10; printf '' \| <tool>) &"` |
 | Windows | `clip` | PowerShell `Start-Job` |
 
-Clipboard tool detection on Linux checks for `wl-copy` first (Wayland), then `xclip` (X11).
+Clipboard tool detection on Linux checks for `wl-copy` first (Wayland), then `xclip` (X11). The `xclip` invocation explicitly uses `-selection clipboard` to target the clipboard rather than the primary selection.
 
 ## Data Flow
 
