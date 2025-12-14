@@ -329,13 +329,25 @@ fn int main(String[] args) {
     } else {
         vault::DbPathMatches matches = vault::lookup_database_paths(master_db_path, selected_db_name);
         if (matches.len > 1) {
-            io::eprintfn("Multiple databases named '%s' found. Use --db-path to pick one:", selected_db_name);
+            // Prefer the one in the default directory
+            ZString default_path = get_db_path(selected_db_name)!!;
+            String default_path_str = default_path.str_view();
+            bool found_default = false;
             for (int i = 0; i < matches.len; i++) {
-                io::eprintfn("  %s", matches.paths[i]);
+                if (matches.paths[i].str_view() == default_path_str) {
+                    db_path = matches.paths[i];
+                    found_default = true;
+                    break;
+                }
             }
-            return 1;
-        }
-        if (matches.len == 1) {
+            if (!found_default) {
+                io::eprintfn("Multiple databases named '%s' found. Use --db-path to pick one:", selected_db_name);
+                for (int i = 0; i < matches.len; i++) {
+                    io::eprintfn("  %s", matches.paths[i]);
+                }
+                return 1;
+            }
+        } else if (matches.len == 1) {
             db_path = matches.paths[0];
         } else {
             vault::ClosestDbMatch closest = vault::closest_database_match(master_db_path, selected_db_name);

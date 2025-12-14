@@ -140,64 +140,8 @@ fn int register_database(ZString master_db,
     db::Sqlite3 *db = null;
     int rc = open_plain(master_db, &db);
 
-    // Disallow duplicate names pointing at different paths.
-    ZString check_sql = (ZString)
-        "SELECT path FROM tracked_databases WHERE name = ?1 ORDER BY path ASC";
-    db::Sqlite3Stmt *check_stmt = null;
-
-    rc = db::sqlite3_prepare_v2(db, check_sql, -1, &check_stmt, null);
-    if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing lookup while registering database");
-        return rc;
-    }
-
-    db::sqlite3_bind_text(check_stmt, 1, db_name.zstr_tcopy(), -1, null);
-
-    String db_path_str = db_path.str_view();
-    bool has_conflict = false;
-    bool path_already_tracked = false;
-
-    while ((rc = db::sqlite3_step(check_stmt)) == db::SQLITE_ROW) {
-        String existing_path = ((ZString) db::sqlite3_column_text(check_stmt, 0)).str_view();
-        if (existing_path == db_path_str) {
-            path_already_tracked = true;
-        } else {
-            has_conflict = true;
-        }
-    }
-
-    int rc_check_finalize = db::sqlite3_finalize(check_stmt);
-    if (rc != db::SQLITE_DONE || rc_check_finalize != db::SQLITE_OK) {
-        db::sqlite3_close(db);
-        return rc != db::SQLITE_DONE ? rc : rc_check_finalize;
-    }
-
-    if (has_conflict) {
-        rc = db::sqlite3_prepare_v2(db, check_sql, -1, &check_stmt, null);
-        if (rc != db::SQLITE_OK) {
-            close_with_error(db, "Error preparing conflict list while registering database");
-            return rc;
-        }
-
-        db::sqlite3_bind_text(check_stmt, 1, db_name.zstr_tcopy(), -1, null);
-
-        io::eprintfn("Name conflict for '%s'. The following databases share this name:", db_name);
-        while ((rc = db::sqlite3_step(check_stmt)) == db::SQLITE_ROW) {
-            io::eprintfn("  %s", db::sqlite3_column_text(check_stmt, 0));
-        }
-        int rc_conf_finalize = db::sqlite3_finalize(check_stmt);
-        if (!path_already_tracked) {
-            io::eprintfn("  %s (attempted registration)", db_path);
-        }
-        db::sqlite3_close(db);
-
-        if (rc != db::SQLITE_DONE || rc_conf_finalize != db::SQLITE_OK) {
-            return rc != db::SQLITE_DONE ? rc : rc_conf_finalize;
-        }
-
-        return db::SQLITE_CONSTRAINT;
-    }
-
+    // Allow duplicate names at different paths - conflict is only checked
+    // when using --db-name for lookup (not --db-path).
     ZString sql = (ZString)
         "INSERT INTO tracked_databases (name, path, created_at, updated_at) "
         "VALUES (?1, ?2, strftime('%s','now'), strftime('%s','now')) "
@@ -406,7 +350,8 @@ fn int update_credentials(String master_pw,
                           ZString site,
                           ZString acct,
                           String  spw) {
-    ZString pw = spw.zstr_tcopy();
+    // Use original String pointer with explicit length - no extra copy to avoid
+    // leaving unwiped password data in memory. Caller is responsible for wiping spw.
     db::Sqlite3 *db;
     int rc = open(master_pw, filename, &db);
     ZString sql = (ZString)
@@ -426,7 +371,8 @@ fn int update_credentials(String master_pw,
 
     db::sqlite3_bind_text(stmt, 1, site, -1, null);
     db::sqlite3_bind_text(stmt, 2, acct, -1, null);
-    db::sqlite3_bind_text(stmt, 3, pw, -1, null);
+    // Bind password with explicit length to avoid needing null-terminated copy
+    db::sqlite3_bind_text(stmt, 3, (ZString)spw.ptr, (int)spw.len, null);
 
     rc = db::sqlite3_step(stmt);
     int rc_finalize = db::sqlite3_finalize(stmt);

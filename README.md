@@ -52,8 +52,8 @@ The CLI expects exactly one action flag:
 | `--list-dbs` | | Show tracked database names and paths. |
 
 Database selection:
-- `--db-name`             Name of the DB file under `~/Documents/pwm/` (default: `pwm_db.db`). The `.db` extension is added automatically if omitted (e.g., `--db-name work` becomes `work.db`). Must match the filename portion of the database path. If multiple tracked DBs share the name, all paths are printed and the command aborts so you can re-run with `--db-path`. If no tracked match exists, the closest tracked name is suggested and the default path is used when it exists.
-- `--db-path`             Full path to a DB file; overrides `--db-name` and registry lookup. The filename portion of this path becomes the DB name (a mismatched `--db-name` is rejected). You can also pass the path as the final positional argument (e.g., `--init /path/to/db`).
+- `--db-name`             Name of the DB file under `~/Documents/pwm/` (default: `pwm_db.db`). The `.db` extension is added automatically if omitted (e.g., `--db-name work` becomes `work.db`). If multiple tracked DBs share the name, all paths are printed and the command aborts so you can re-run with `--db-path`. If no tracked match exists, the closest tracked name is suggested and the default path is used when it exists.
+- `--db-path`             Full path to a DB file; overrides `--db-name` and registry lookup. Allows databases with the same filename in different locations. You can also pass the path as the final positional argument (e.g., `--init /path/to/db`).
 
 Supporting options:
 - `--site` / `--service`   Site/service name.
@@ -87,11 +87,12 @@ Examples:
 ## Multiple vaults & registry
 - A master registry is stored at `~/Documents/pwm/pwm_master_db.db` (unencrypted). It records vault name → path mappings and requires no password.
 - On every run, the registry is ensured to exist and prunes entries for files that no longer exist.
-- Name resolution for `--db-name`: if multiple tracked entries exist, their paths are printed and the command exits; if none are tracked, the closest tracked name is displayed and the default path `~/Documents/pwm/<db-name>` is used when present (otherwise the command exits).
-- The vault name must always match the filename portion of the database path. Passing `--db-path` derives the name from that filename; passing a mismatched `--db-name` is rejected.
-- After successful operations, the selected vault path is re-registered so the registry stays current (even when using `--db-path`).
+- Multiple databases can have the same filename in different locations (e.g., `~/work/secrets.db` and `~/personal/secrets.db`).
+- Name resolution for `--db-name`: if multiple tracked entries share the name, the one in the default directory (`~/Documents/pwm/`) is preferred. If none are in the default directory, their paths are printed and the command exits so you can re-run with `--db-path`. If none are tracked, the closest tracked name is suggested.
+- Using `--db-path` bypasses name resolution entirely and accesses the database directly.
+- After successful operations, the selected vault path is re-registered so the registry stays current.
 - Each vault has its own password; the registry does not reuse a shared password.
-- To use a vault created elsewhere, point to it with `--db-path` (or register it with `--init --db-path <existing>`) and supply that vault’s password.
+- To use a vault created elsewhere, point to it with `--db-path` and supply that vault's password.
 
 ## Data & security notes
 - Default vault path: `~/Documents/pwm/pwm_db.db` (override with `--db-name`/`--db-path`). Each vault has its own password; losing it means losing access to that vault.
