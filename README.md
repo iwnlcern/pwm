@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C3](https://img.shields.io/badge/C3-0.7.7-orange.svg)](https://c3-lang.org)
 
-Simple, lightweight CLI password manager written in C3. It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db.db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds.
+Simple, lightweight, cross-platform CLI password manager written in C3. It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db.db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds.
 
 ## Features
 - Create encrypted vaults backed by SQLCipher.
