@@ -126,7 +126,7 @@ Used by `get_secure_pw()` in main.c3 to disable echo during password entry.
 
 ### argparse.c3 (module: `misc::argparse`)
 
-A complete argument parsing library (authored by Alex Veden, updated for C3 v7.7):
+A complete argument parsing library (authored by Alex Veden, original [here](https://github.com/alexveden/c3tools/blob/main/lib/c3lib/argparse/argparse.c3), updated for C3 v0.7.7):
 
 **Key Types**:
 - `ArgParse`: Top-level parser configuration
