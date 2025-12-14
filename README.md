@@ -1,6 +1,9 @@
 # PWM (C3 password manager)
 
-Simple, lightweight CLI password manager written in C3. It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![C3](https://img.shields.io/badge/C3-0.7.7-orange.svg)](https://c3-lang.org)
+
+Simple, lightweight CLI password manager written in C3. It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db.db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds.
 
 ## Features
 - Create encrypted vaults backed by SQLCipher.
@@ -15,7 +18,7 @@ Simple, lightweight CLI password manager written in C3. It stores credentials in
 - Passwords are wiped from memory after use.
 
 ## Requirements
-- C3 compiler (tested with v7.7 syntax). Build expects `c3c`.
+- C3 compiler (v0.7.7 or later). Build expects `c3c`.
 - SQLCipher/SQLite3 headers and libraries. Default linker search path is `/opt/homebrew/opt/sqlcipher/lib`—adjust `project.json` if your installation differs.
 - Clipboard tools:
   - macOS: `pbcopy`
@@ -37,7 +40,7 @@ The CLI expects exactly one action flag:
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--init` | | Create a new encrypted DB (default: `~/Documents/pwm/pwm_db`). Prompts for vault password. |
+| `--init` | | Create a new encrypted DB (default: `~/Documents/pwm/pwm_db.db`). Prompts for vault password. |
 | `--update` | `-u` | Insert/update an entry. Use with `--site` and `--user`; prompts for credential password. |
 | `--add` | `-a` | Alias for `--update`. |
 | `--remove` | `-r` | Delete an entry by site and username. |
@@ -45,7 +48,7 @@ The CLI expects exactly one action flag:
 | `--list-dbs` | | Show tracked database names and paths. |
 
 Database selection:
-- `--db-name`             Name of the DB file under `~/Documents/pwm/` (default: `pwm_db`). Must match the filename portion of the database path. If multiple tracked DBs share the name, all paths are printed and the command aborts so you can re-run with `--db-path`. If no tracked match exists, the closest tracked name is suggested and the default path is used when it exists.
+- `--db-name`             Name of the DB file under `~/Documents/pwm/` (default: `pwm_db.db`). The `.db` extension is added automatically if omitted (e.g., `--db-name work` becomes `work.db`). Must match the filename portion of the database path. If multiple tracked DBs share the name, all paths are printed and the command aborts so you can re-run with `--db-path`. If no tracked match exists, the closest tracked name is suggested and the default path is used when it exists.
 - `--db-path`             Full path to a DB file; overrides `--db-name` and registry lookup. The filename portion of this path becomes the DB name (a mismatched `--db-name` is rejected). You can also pass the path as the final positional argument (e.g., `--init /path/to/db`).
 
 Supporting options:
@@ -56,11 +59,11 @@ Supporting options:
 Examples:
 
 ```sh
-# One-time initialization (default path ~/Documents/pwm/pwm_db)
+# One-time initialization (default path ~/Documents/pwm/pwm_db.db)
 ./build/pwm --init
 
 # Initialize a second vault with a custom name under ~/Documents/pwm/
-./build/pwm --init --db-name work_secrets
+./build/pwm --init --db-name work_secrets  # creates work_secrets.db
 
 # Initialize a vault at an explicit path
 ./build/pwm --init --db-path /Users/me/Desktop/my_secrets.db
@@ -78,7 +81,7 @@ Examples:
 ```
 
 ## Multiple vaults & registry
-- A master registry is stored at `~/Documents/pwm/pwm_master_db` (unencrypted). It records vault name → path mappings and requires no password.
+- A master registry is stored at `~/Documents/pwm/pwm_master_db.db` (unencrypted). It records vault name → path mappings and requires no password.
 - On every run, the registry is ensured to exist and prunes entries for files that no longer exist.
 - Name resolution for `--db-name`: if multiple tracked entries exist, their paths are printed and the command exits; if none are tracked, the closest tracked name is displayed and the default path `~/Documents/pwm/<db-name>` is used when present (otherwise the command exits).
 - The vault name must always match the filename portion of the database path. Passing `--db-path` derives the name from that filename; passing a mismatched `--db-name` is rejected.
@@ -87,10 +90,13 @@ Examples:
 - To use a vault created elsewhere, point to it with `--db-path` (or register it with `--init --db-path <existing>`) and supply that vault’s password.
 
 ## Data & security notes
-- Default vault path: `~/Documents/pwm/pwm_db` (override with `--db-name`/`--db-path`). Each vault has its own password; losing it means losing access to that vault.
-- Master registry lives at `~/Documents/pwm/pwm_master_db`, only stores vault names/paths, and is unencrypted.
+- Default vault path: `~/Documents/pwm/pwm_db.db` (override with `--db-name`/`--db-path`). Each vault has its own password; losing it means losing access to that vault.
+- Master registry lives at `~/Documents/pwm/pwm_master_db.db`, only stores vault names/paths, and is unencrypted.
 - Encryption relies on SQLCipher via `sqlite3_key`; integrity is checked with `PRAGMA cipher_integrity_check`.
 - Clipboard clearing is best-effort via a background process; behavior depends on OS clipboard tooling being present.
+
+## Contributing
+Contributions are welcome—see `CONTRIBUTING.md` for setup and PR guidance. Community expectations are covered in `CODE_OF_CONDUCT.md`. To report security issues privately, follow `SECURITY.md`.
 
 ## TODOs:
 - Looking to display all usernames for a given site.
@@ -100,3 +106,6 @@ Examples:
 ## Acknowledgements
 - CODEX 5.1 and CLAUDE OPUS 4.5 for documentation (I cba to write, easier to read and verify) and boiler-plate.
 - Alex Veden (<i@alexveden.com>) for argparse.c3 original src and CODEX for updates.
+
+## License
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

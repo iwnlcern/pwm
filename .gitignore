@@ -1,3 +1,43 @@
-build/
-out/
+# Build artifacts
+/build/
+/out/
+/dist/
+
+# Compiled objects and binaries
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+*.pdb
+
+# Editor and OS metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 *.swp
+*.swo
+
+# Logs and temp files
+*.log
+*.tmp
+*.lock
+
+# Local environment files
+.env
+.env.*
+
+# Local databases and caches
+*.db
+*.sqlite
+*.sqlite3
+.cache/
+
+# C3 compiler artifacts
+.c3/
+c3cache/
+*.c3o

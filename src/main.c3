@@ -10,8 +10,8 @@ import misc::secure;
 import pwm::vault;
 import db;
 
-const String DEFAULT_DB_NAME = "pwm_db";
-const String MASTER_DB_NAME  = "pwm_master_db";
+const String DEFAULT_DB_NAME = "pwm_db.db";
+const String MASTER_DB_NAME  = "pwm_master_db.db";
 
 fn String get_secure_pw(ZString msg) {
     termios::Termios oflags, nflags;
@@ -112,6 +112,16 @@ fn String filename_from_path(String db_path_str) {
     return db_path_str[last_sep + 1 ..].tcopy();
 }
 
+fn String ensure_db_extension(String name) {
+    if (!name || name.len == 0) {
+        return name;
+    }
+    if (name.ends_with(".db")) {
+        return name;
+    }
+    return name.tconcat(".db");
+}
+
 fn bool enforce_db_name_matches_filename(String *db_name,
                                          String db_path_str,
                                          bool db_name_flag_present) {
@@ -152,9 +162,9 @@ fn int main(String[] args) {
     String db_path_override = "";
 
     argparse::ArgParse agp = {
-        .description = "Simple, lightweight cross-platfrm CLI password manager written in C3.",
+        .description = "Simple, lightweight cross-platform CLI password manager written in C3.",
         .usage       = "[--init|--update|--remove|--get] [--site <site>] [--user <user>] [--db-name <name>|--db-path <path>|<db-path>]",
-        .epilog      = "Run --init once to create a database (default: ~/Documents/pwm/pwm_db); append --db-name or --db-path to access exact db.",
+        .epilog      = "Run --init once to create a database (default: ~/Documents/pwm/pwm_db.db); append --db-name or --db-path to access exact db.",
         .options     = {
             argparse::help_opt(),
             argparse::group_opt("Basic options"),
@@ -198,7 +208,7 @@ fn int main(String[] args) {
             {
                 .long_name  = "db-name",
                 .value      = &db_name,
-                .help       = "Name of the database file under (default: pwm_db in ~/Documents/pwm).",
+                .help       = "Name of the database file under ~/Documents/pwm/ (default: pwm_db.db). The .db extension is added automatically if omitted.",
             },
             {
                 .long_name  = "db-path",
@@ -273,6 +283,7 @@ fn int main(String[] args) {
     if (!selected_db_name || selected_db_name.len == 0) {
         selected_db_name = DEFAULT_DB_NAME;
     }
+    selected_db_name = ensure_db_extension(selected_db_name);
 
     ZString master_db_path = make_home_dir(MASTER_DB_NAME)!!;
     if (vault::ensure_master_registry(master_db_path) != db::SQLITE_OK) {

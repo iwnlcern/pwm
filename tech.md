@@ -85,7 +85,7 @@ CREATE TABLE passwords (
     PRIMARY KEY (site, username)
 );
 
--- Master registry (unencrypted, ~/Documents/pwm/pwm_master_db)
+-- Master registry (unencrypted, ~/Documents/pwm/pwm_master_db.db)
 CREATE TABLE tracked_databases (
     name       TEXT NOT NULL,
     path       TEXT NOT NULL UNIQUE,
