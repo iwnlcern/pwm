@@ -3,6 +3,8 @@ import std::io;
 import db;
 import libc;
 
+import misc::secure;
+
 extern fn int sqlite3_key(db::Sqlite3 *db, void *key, int key_len);
 
 fn void close_with_error(db::Sqlite3 *db, String msg) @local {
@@ -168,11 +170,12 @@ fn int return_credentials(String master_pw,
 
     rc = db::sqlite3_step(stmt);
     if (rc == db::SQLITE_ROW) {
-        // TODO: Make secure output of password.
-        io::printf("%s, %s, %s\n",
+        io::printf("Site: %s\n"
+                   "User: %s\n"
+                   "Password copied to clipboard.\n",
                    db::sqlite3_column_text(stmt, 0),
-                   db::sqlite3_column_text(stmt, 1),
-                   db::sqlite3_column_text(stmt, 2));
+                   db::sqlite3_column_text(stmt, 1));
+        secure::output_pw(db::sqlite3_column_text(stmt, 2).str_view());
         rc = db::SQLITE_OK;
     }
     
