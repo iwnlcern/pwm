@@ -99,10 +99,7 @@ Examples:
 - Master registry lives at `~/Documents/pwm/pwm_master_db.db`, only stores vault names/paths, and is unencrypted.
 - Encryption relies on SQLCipher via `sqlite3_key`; integrity is checked with `PRAGMA cipher_integrity_check`.
 - Clipboard clearing is best-effort via a background process; behavior depends on OS clipboard tooling being present. **NOTE: May still be present in clipboard history.**
-
-## Contributing
-Contributions are welcome—see `CONTRIBUTING.md` for setup and PR guidance. Community expectations are covered in `CODE_OF_CONDUCT.md`. To report security issues privately, follow `SECURITY.md`.
-
+- 
 ## TODOs:
 - Add tests (PLS)
 - Option for displaying password in terminal in tty mode.
