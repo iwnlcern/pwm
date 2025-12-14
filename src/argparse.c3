@@ -1,5 +1,5 @@
 // Copyright (c) 2025 Alex Veden <i@alexveden.com>. All rights reserved.
-// Updated for current C3 v7.7 by Jack Li <li.jack.services@gmail.com> and Open-AI's codex (syntax + faulting + any + macros)
+// Updated for current C3 v0.7.7 by Jack Li <li.jack.services@gmail.com> and Open-AI's codex (syntax + faulting + any + macros)
 // Last update: 12/10/2025 (mm/dd/yyyy)
 //
 //
