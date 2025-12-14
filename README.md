@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C3](https://img.shields.io/badge/C3-0.7.7-orange.svg)](https://c3-lang.org)
 
-Simple, lightweight CLI password manager written in C3. It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db.db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds. 
+Simple, lightweight CLI password manager written in [C3](https://c3-lang.org/). It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db.db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds. 
 
 Note that PWM is best protected against shoulder peeking, screen recorders, and other unsophisticated attack methods. No guarantees against advanced attack methods like memory dumps and the such; minimal protection given by ensuring memory holding passwords and other confidential information is cleared by zeroing out; however, passwords may still persist in clipboard history. I am not aware of any software workarounds that can output passwords in a more secure manner. The most secure option I can think of is having the database loaded into a thumbdrive and then use an offline device to view confidential information. This should provide sufficent security for most people.
 
@@ -29,7 +29,7 @@ Note that PWM is best protected against shoulder peeking, screen recorders, and 
 - Passwords are wiped from memory after use.
 
 ## Requirements
-- C3 compiler (v0.7.7 or later). Build expects `c3c`.
+- C3 compiler (v0.7.7 or later)(https://c3-lang.org/). Build expects `c3c`.
 - SQLCipher/SQLite3 headers and libraries. Default linker search path is `/opt/homebrew/opt/sqlcipher/lib`—adjust `project.json` if your installation differs.
 - Clipboard tools:
   - macOS: `pbcopy`
