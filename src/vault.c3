@@ -1,9 +1,23 @@
 module pwm::vault;
 import std::io;
+import std::io::path;
 import db;
 import libc;
 
 import misc::secure;
+const int MAX_DB_NUM = 32;
+
+struct DbPathMatches {
+    ZString[MAX_DB_NUM] paths;
+    int len;
+}
+
+struct ClosestDbMatch {
+    bool found;
+    String name;
+    ZString path;
+    int distance;
+}
 
 extern fn int sqlite3_key(db::Sqlite3 *db, void *key, int key_len);
 
@@ -11,6 +25,15 @@ fn void close_with_error(db::Sqlite3 *db, String msg) @local {
     io::eprintf("%s: %s\n", msg, db::sqlite3_errmsg(db));
     db::sqlite3_close(db);
     libc::exit(1);
+}
+
+fn int open_plain(ZString filename, db::Sqlite3 **db) @local {
+    int rc = db::sqlite3_open(filename, db);
+    if (rc) {
+        io::eprintf("Can't open database: %s\n", db::sqlite3_errmsg(*db));
+        return rc;
+    }
+    return rc;
 }
 
 fn int open(String master_pw,
@@ -76,6 +99,306 @@ fn int create_vault(String master_pw, ZString filename) {
     }
 
     return db::SQLITE_OK;
+}
+
+fn int ensure_master_registry(ZString filename) {
+    db::Sqlite3 *db = null;
+
+    int rc = open_plain(filename, &db);
+
+    ZString sql = (ZString)
+        "CREATE TABLE IF NOT EXISTS tracked_databases ("
+        "   name       TEXT NOT NULL,"
+        "   path       TEXT NOT NULL UNIQUE,"
+        "   created_at INTEGER NOT NULL,"
+        "   updated_at INTEGER NOT NULL"
+        ");";
+
+    db::Sqlite3Stmt *stmt = null;
+
+    rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
+    if (rc != db::SQLITE_OK) {
+        close_with_error(db, "Error preparing statement while creating registry");
+        return rc;
+    }
+
+    rc = db::sqlite3_step(stmt);
+    int rc_finalize = db::sqlite3_finalize(stmt);
+    db::sqlite3_close(db);
+
+    if (rc_finalize != db::SQLITE_OK) {
+        io::eprintf("Error finalizing or executing statement while creating registry");
+        return rc_finalize;
+    }
+
+    return db::SQLITE_OK;
+}
+
+fn int register_database(ZString master_db,
+                         String db_name,
+                         ZString db_path) {
+    db::Sqlite3 *db = null;
+    int rc = open_plain(master_db, &db);
+
+    // Disallow duplicate names pointing at different paths.
+    ZString check_sql = (ZString)
+        "SELECT path FROM tracked_databases WHERE name = ?1 ORDER BY path ASC";
+    db::Sqlite3Stmt *check_stmt = null;
+
+    rc = db::sqlite3_prepare_v2(db, check_sql, -1, &check_stmt, null);
+    if (rc != db::SQLITE_OK) {
+        close_with_error(db, "Error preparing lookup while registering database");
+        return rc;
+    }
+
+    db::sqlite3_bind_text(check_stmt, 1, (ZString) db_name, -1, null);
+
+    String db_path_str = db_path.str_view();
+    bool has_conflict = false;
+    bool path_already_tracked = false;
+
+    while ((rc = db::sqlite3_step(check_stmt)) == db::SQLITE_ROW) {
+        String existing_path = ((ZString) db::sqlite3_column_text(check_stmt, 0)).str_view();
+        if (existing_path == db_path_str) {
+            path_already_tracked = true;
+        } else {
+            has_conflict = true;
+        }
+    }
+
+    int rc_check_finalize = db::sqlite3_finalize(check_stmt);
+    if (rc != db::SQLITE_DONE || rc_check_finalize != db::SQLITE_OK) {
+        db::sqlite3_close(db);
+        return rc != db::SQLITE_DONE ? rc : rc_check_finalize;
+    }
+
+    if (has_conflict) {
+        rc = db::sqlite3_prepare_v2(db, check_sql, -1, &check_stmt, null);
+        if (rc != db::SQLITE_OK) {
+            close_with_error(db, "Error preparing conflict list while registering database");
+            return rc;
+        }
+
+        db::sqlite3_bind_text(check_stmt, 1, (ZString) db_name, -1, null);
+
+        io::eprintfn("Name conflict for '%s'. The following databases share this name:", db_name);
+        while ((rc = db::sqlite3_step(check_stmt)) == db::SQLITE_ROW) {
+            io::eprintfn("  %s", db::sqlite3_column_text(check_stmt, 0));
+        }
+        int rc_conf_finalize = db::sqlite3_finalize(check_stmt);
+        if (!path_already_tracked) {
+            io::eprintfn("  %s (attempted registration)", db_path);
+        }
+        db::sqlite3_close(db);
+
+        if (rc != db::SQLITE_DONE || rc_conf_finalize != db::SQLITE_OK) {
+            return rc != db::SQLITE_DONE ? rc : rc_conf_finalize;
+        }
+
+        return db::SQLITE_CONSTRAINT;
+    }
+
+    ZString sql = (ZString)
+        "INSERT INTO tracked_databases (name, path, created_at, updated_at) "
+        "VALUES (?1, ?2, strftime('%s','now'), strftime('%s','now')) "
+        "ON CONFLICT(path) DO UPDATE SET "
+        "   name = excluded.name,"
+        "   updated_at = excluded.updated_at;";
+
+    db::Sqlite3Stmt *stmt = null;
+
+    rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
+    if (rc != db::SQLITE_OK) {
+        close_with_error(db, "Error preparing statement while registering database");
+        return rc;
+    }
+
+    db::sqlite3_bind_text(stmt, 1, (ZString) db_name, -1, null);
+    db::sqlite3_bind_text(stmt, 2, db_path, -1, null);
+
+    rc = db::sqlite3_step(stmt);
+    int rc_finalize = db::sqlite3_finalize(stmt);
+    db::sqlite3_close(db);
+
+    if (rc != db::SQLITE_DONE || rc_finalize != db::SQLITE_OK) {
+        io::eprintf("Error finalizing or executing statement while registering database");
+        return rc;
+    }
+
+    return db::SQLITE_OK;
+}
+
+fn int name_distance(String a, String b) @local {
+    int len_a = (int) a.len;
+    int len_b = (int) b.len;
+    int min_len = len_a < len_b ? len_a : len_b;
+    int max_len = len_a > len_b ? len_a : len_b;
+    int distance = max_len - min_len;
+
+    for (int i = 0; i < min_len; i++) {
+        if (a[i] != b[i]) {
+            distance++;
+        }
+    }
+    return distance;
+}
+
+fn DbPathMatches lookup_database_paths(ZString master_db,
+                                 String db_name) {
+    DbPathMatches matches = { .len = 0 };
+    db::Sqlite3 *db = null;
+    int rc = open_plain(master_db, &db);
+    if (rc != db::SQLITE_OK) {
+        return matches;
+    }
+
+    ZString sql = (ZString)
+        "SELECT path FROM tracked_databases WHERE name = ?1 ORDER BY path ASC";
+    db::Sqlite3Stmt *stmt = null;
+
+    rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
+    if (rc != db::SQLITE_OK) {
+        close_with_error(db, "Error preparing statement while loading tracked database");
+        return matches;
+    }
+
+    db::sqlite3_bind_text(stmt, 1, (ZString) db_name, -1, null);
+
+    while ((rc = db::sqlite3_step(stmt)) == db::SQLITE_ROW) {
+        if (matches.len >= MAX_DB_NUM) {
+            io::eprintfn("Too many databases tracked with name '%s'; showing first %d.", db_name, MAX_DB_NUM);
+            break;
+        }
+        String row_path = ((ZString) db::sqlite3_column_text(stmt, 0)).str_view();
+        matches.paths[matches.len] = row_path.zstr_tcopy();
+        matches.len++;
+    }
+
+    db::sqlite3_finalize(stmt);
+    db::sqlite3_close(db);
+
+    return matches;
+}
+
+fn ClosestDbMatch closest_database_match(ZString master_db,
+                                         String target_name) {
+    ClosestDbMatch closest = { .found = false, .name = "", .path = null, .distance = 0 };
+    db::Sqlite3 *db = null;
+    int rc = open_plain(master_db, &db);
+    if (rc != db::SQLITE_OK) {
+        return closest;
+    }
+
+    ZString sql = (ZString)
+        "SELECT name, path FROM tracked_databases";
+    db::Sqlite3Stmt *stmt = null;
+
+    rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
+    if (rc != db::SQLITE_OK) {
+        db::sqlite3_close(db);
+        return closest;
+    }
+
+    while ((rc = db::sqlite3_step(stmt)) == db::SQLITE_ROW) {
+        String candidate_name = ((ZString) db::sqlite3_column_text(stmt, 0)).str_view();
+        int distance = name_distance(target_name, candidate_name);
+        if (!closest.found || distance < closest.distance) {
+            closest.found = true;
+            closest.distance = distance;
+            closest.name = candidate_name.tcopy();
+            String candidate_path = ((ZString) db::sqlite3_column_text(stmt, 1)).str_view();
+            closest.path = candidate_path.zstr_tcopy();
+        }
+    }
+
+    int rc_finalize = db::sqlite3_finalize(stmt);
+    db::sqlite3_close(db);
+
+    if (rc_finalize != db::SQLITE_OK && closest.found) {
+        io::eprintf("Error finalizing statement while loading tracked database");
+    }
+
+    return closest;
+}
+
+fn int prune_missing_databases(ZString master_db) {
+    db::Sqlite3 *db = null;
+    int rc = open_plain(master_db, &db);
+
+    ZString sql = (ZString)
+        "SELECT path FROM tracked_databases";
+    db::Sqlite3Stmt *stmt = null;
+    rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
+    if (rc != db::SQLITE_OK) {
+        close_with_error(db, "Error preparing statement while pruning registry");
+        return rc;
+    }
+
+    ZString del_sql = (ZString)
+        "DELETE FROM tracked_databases WHERE path = ?1";
+    db::Sqlite3Stmt *del_stmt = null;
+    rc = db::sqlite3_prepare_v2(db, del_sql, -1, &del_stmt, null);
+    if (rc != db::SQLITE_OK) {
+        close_with_error(db, "Error preparing delete statement while pruning registry");
+        return rc;
+    }
+
+    while ((rc = db::sqlite3_step(stmt)) == db::SQLITE_ROW) {
+        String tracked_path = ((ZString) db::sqlite3_column_text(stmt, 0)).str_view();
+        if (!path::exists(tracked_path.to_tpath())!!) {
+            db::sqlite3_reset(del_stmt);
+            db::sqlite3_clear_bindings(del_stmt);
+            ZString tracked = tracked_path.zstr_tcopy();
+            db::sqlite3_bind_text(del_stmt, 1, tracked, -1, null);
+            db::sqlite3_step(del_stmt);
+        }
+    }
+
+    if (rc != db::SQLITE_DONE) {
+        db::sqlite3_finalize(stmt);
+        db::sqlite3_finalize(del_stmt);
+        db::sqlite3_close(db);
+        return rc;
+    }
+
+    int rc_sel = db::sqlite3_finalize(stmt);
+    int rc_del = db::sqlite3_finalize(del_stmt);
+    db::sqlite3_close(db);
+
+    if (rc_sel != db::SQLITE_OK || rc_del != db::SQLITE_OK) {
+        io::eprintf("Error finalizing statements while pruning registry");
+        return rc_sel != db::SQLITE_OK ? rc_sel : rc_del;
+    }
+
+    return db::SQLITE_OK;
+}
+
+fn void list_databases(ZString master_db) {
+    db::Sqlite3 *db = null;
+    int rc = open_plain(master_db, &db);
+    if (rc != db::SQLITE_OK) {
+        return;
+    }
+
+    ZString sql = (ZString)
+        "SELECT name, path FROM tracked_databases ORDER BY name ASC";
+    db::Sqlite3Stmt *stmt = null;
+
+    rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
+    if (rc != db::SQLITE_OK) {
+        db::sqlite3_close(db);
+        return;
+    }
+
+    io::printf("Tracked databases:\n");
+    while ((rc = db::sqlite3_step(stmt)) == db::SQLITE_ROW) {
+        io::printf("  %s -> %s\n",
+                   db::sqlite3_column_text(stmt, 0),
+                   db::sqlite3_column_text(stmt, 1));
+    }
+
+    db::sqlite3_finalize(stmt);
+    db::sqlite3_close(db);
 }
 
 fn int update_credentials(String master_pw,

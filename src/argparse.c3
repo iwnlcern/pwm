@@ -1,5 +1,5 @@
 // Copyright (c) 2025 Alex Veden <i@alexveden.com>. All rights reserved.
-// Updated for current C3 v7.7 by Jack Li <li.jack.services@gmail.com> (syntax + faulting + any + macros)
+// Updated for current C3 v7.7 by Jack Li <li.jack.services@gmail.com> and Open-AI's codex (syntax + faulting + any + macros)
 // Last update: 12/10/2025 (mm/dd/yyyy)
 //
 //
@@ -106,8 +106,7 @@ struct ArgParse {
 // -----------------------------------------------------------------------------
 
 /// Special template option for --help/-h - prints usage
-fn ArgOpt help_opt(String help_prompt = "show this help message and exit")
-{
+fn ArgOpt help_opt(String help_prompt = "show this help message and exit") {
     return (ArgOpt){
         ._arg_type  = ArgType.HELP,
         .short_name = 'h',
@@ -119,8 +118,7 @@ fn ArgOpt help_opt(String help_prompt = "show this help message and exit")
 }
 
 /// Section separator in usage printout
-fn ArgOpt group_opt(String group_name)
-{
+fn ArgOpt group_opt(String group_name) {
     return (ArgOpt){
         ._arg_type = ArgType.GROUP,
         .help      = group_name,
@@ -139,8 +137,7 @@ fn ArgOpt group_opt(String group_name)
 
  When used, you should not also call ArgParse.parse() on the same ArgParse.
 */
-fn String? ArgParse.next(&self, String[] argv)
-{
+fn String? ArgParse.next(&self, String[] argv) {
     assert(self.arguments.len == 0, "ArgParse already initialized or double parse call");
 
     if (!self._ctx.has_argument) {
@@ -201,8 +198,7 @@ fn String? ArgParse.next(&self, String[] argv)
 
  On failure: returns one of the ARGPARSE_* faults.
 */
-fn void? ArgParse.parse(&self, String[] argv)
-{
+fn void? ArgParse.parse(&self, String[] argv) {
     assert(self.arguments.len == 0, "ArgParse already initialized or double parse call");
     assert(!self._ctx.has_argument, "ArgParse.next() already used before (pick only one way)?");
     assert(argv.len > 0);
@@ -293,8 +289,7 @@ fn void? ArgParse.parse(&self, String[] argv)
 // Usage output
 // -----------------------------------------------------------------------------
 
-fn void? ArgParse.print_usage(&self)
-{
+fn void? ArgParse.print_usage(&self) {
     assert(self.options.len > 0, "ArgParse is not properly configured");
 
     io::printf("\nUsage:\n");
@@ -426,8 +421,7 @@ fn void? ArgParse.print_usage(&self)
 // Internal helpers
 // -----------------------------------------------------------------------------
 
-fn void? ArgParse.options_ensure_required(&self) @local
-{
+fn void? ArgParse.options_ensure_required(&self) @local {
     bool has_errors = false;
     foreach (i, opt : self.options) {
         if (opt._arg_type == ArgType.GROUP || opt._arg_type == ArgType.HELP) {
@@ -445,8 +439,7 @@ fn void? ArgParse.options_ensure_required(&self) @local
     }
 }
 
-fn void? ArgParse.options_check(&self) @local
-{
+fn void? ArgParse.options_check(&self) @local {
     assert(self.arguments.len == 0, "already processed?");
 
     foreach (i, opt : self.options) {
@@ -507,8 +500,7 @@ fn void? ArgParse.options_check(&self) @local
     }
 }
 
-fn String? ArgParse.get_arg(&self) @local
-{
+fn String? ArgParse.get_arg(&self) @local {
     if (self._ctx.optvalue) {
         // --arg=<optvalue> via '='
         String result = self._ctx.optvalue;
@@ -532,8 +524,7 @@ fn String? ArgParse.get_arg(&self) @local
     }
 }
 
-fn void? ArgParse.parse_arg_val(&self, ArgOpt* opt, bool flag_unset = false) @local
-{
+fn void? ArgParse.parse_arg_val(&self, ArgOpt* opt, bool flag_unset = false) @local {
     assert(opt);
     if (opt._arg_type == ArgType.HELP) {
         return ARGPARSE_HELP_SHOW?;
@@ -606,8 +597,7 @@ fn void? ArgParse.parse_arg_val(&self, ArgOpt* opt, bool flag_unset = false) @lo
     }
 }
 
-fn void? ArgParse.parse_short_arg(&self) @local
-{
+fn void? ArgParse.parse_short_arg(&self) @local {
     foreach (&opt : self.options) {
         if (opt.short_name == self._ctx.optvalue[0]) {
             self._ctx.optvalue =
@@ -635,8 +625,7 @@ fn void? ArgParse.parse_short_arg(&self) @local
     return ARGPARSE_INVALID_ARGUMENT?;
 }
 
-fn String? prefix_skip(String s, String prefix) @local
-{
+fn String? prefix_skip(String s, String prefix) @local {
     if (s.starts_with(prefix)) {
         return s[prefix.len ..];
     } else {
@@ -644,8 +633,7 @@ fn String? prefix_skip(String s, String prefix) @local
     }
 }
 
-fn void? ArgParse.parse_long_arg(&self) @local
-{
+fn void? ArgParse.parse_long_arg(&self) @local {
     foreach (&opt : self.options) {
         if (!opt.long_name) {
             continue;

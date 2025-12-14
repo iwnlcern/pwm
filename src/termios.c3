@@ -6,7 +6,7 @@ const int TCSAFLUSH   =  2;
 
 const int NCCS        =  20;
 
-struct Termios @cname("termios"){
+struct Termios @cname("termios") {
 	ulong        c_iflag;        /* input flags */
 	ulong        c_oflag;        /* output flags */
 	ulong        c_cflag;        /* control flags */
