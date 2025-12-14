@@ -104,6 +104,7 @@ Contributions are welcome—see `CONTRIBUTING.md` for setup and PR guidance. Com
 
 ## TODOs:
 - Add tests (PLS)
+- Option for displaying password in terminal in tty mode.
 - Looking to display all usernames for a given site.
 - Maybe also store security questions and answers.
 - Perhaps a GUI interface sometime in the future when c3 is more mature.
