@@ -21,10 +21,10 @@ struct ClosestDbMatch {
 
 extern fn int sqlite3_key(db::Sqlite3 *db, void *key, int key_len);
 
-fn void close_with_error(db::Sqlite3 *db, String msg) @local {
+fn int close_with_error(db::Sqlite3 *db, String msg) @local {
     io::eprintf("%s: %s\n", msg, db::sqlite3_errmsg(db));
     db::sqlite3_close(db);
-    libc::exit(1);
+    return db::SQLITE_ERROR;
 }
 
 fn int open_plain(ZString filename, db::Sqlite3 **db) @local {
@@ -61,9 +61,21 @@ fn int open(String master_pw,
             io::eprintf("Wrong password or corrupt DB: %s\n", err_msg);
             db::sqlite3_free(err_msg);
         }
-        close_with_error(*db, "Wrong password");
+        return close_with_error(*db, "Wrong password");
     }
-    return rc;
+
+    // Overwrite deleted content with zeros to prevent recovery of old records
+    ZString secure_del_sql = "PRAGMA secure_delete=ON;";
+    rc = db::sqlite3_exec(*db, secure_del_sql, null, null, &err_msg);
+    if (rc != db::SQLITE_OK) {
+        if (err_msg != null) {
+            io::eprintf("Failed to enable secure_delete: %s\n", err_msg);
+            db::sqlite3_free(err_msg);
+        }
+        // Non-fatal: continue even if this fails
+    }
+
+    return db::SQLITE_OK;
 }
 
 fn int create_vault(String master_pw, ZString filename) {
@@ -83,8 +95,7 @@ fn int create_vault(String master_pw, ZString filename) {
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing sql statement while creating table");
-        return rc;
+        return close_with_error(db, "Error preparing sql statement while creating table");
     }
 
     rc = db::sqlite3_step(stmt);
@@ -118,8 +129,7 @@ fn int ensure_master_registry(ZString filename) {
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing statement while creating registry");
-        return rc;
+        return close_with_error(db, "Error preparing statement while creating registry");
     }
 
     rc = db::sqlite3_step(stmt);
@@ -153,8 +163,7 @@ fn int register_database(ZString master_db,
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing statement while registering database");
-        return rc;
+        return close_with_error(db, "Error preparing statement while registering database");
     }
 
     db::sqlite3_bind_text(stmt, 1, db_name.zstr_tcopy(), -1, null);
@@ -202,7 +211,7 @@ fn DbPathMatches lookup_database_paths(ZString master_db,
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing statement while loading tracked database");
+        (void)close_with_error(db, "Error preparing statement while loading tracked database");
         return matches;
     }
 
@@ -274,8 +283,7 @@ fn int prune_missing_databases(ZString master_db) {
     db::Sqlite3Stmt *stmt = null;
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing statement while pruning registry");
-        return rc;
+        return close_with_error(db, "Error preparing statement while pruning registry");
     }
 
     ZString del_sql = (ZString)
@@ -283,8 +291,7 @@ fn int prune_missing_databases(ZString master_db) {
     db::Sqlite3Stmt *del_stmt = null;
     rc = db::sqlite3_prepare_v2(db, del_sql, -1, &del_stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing delete statement while pruning registry");
-        return rc;
+        return close_with_error(db, "Error preparing delete statement while pruning registry");
     }
 
     while ((rc = db::sqlite3_step(stmt)) == db::SQLITE_ROW) {
@@ -365,8 +372,7 @@ fn int update_credentials(String master_pw,
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing statement while modifying credentials");
-        return rc;
+        return close_with_error(db, "Error preparing statement while modifying credentials");
     }
 
     db::sqlite3_bind_text(stmt, 1, site, -1, null);
@@ -399,8 +405,7 @@ fn int remove_credentials(String master_pw,
     
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing statement while deleting credentials");
-        return rc;
+        return close_with_error(db, "Error preparing statement while deleting credentials");
     }
 
     db::sqlite3_bind_text(stmt, 1, site, -1, null);
@@ -430,8 +435,7 @@ fn int return_credentials(String master_pw,
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        close_with_error(db, "Error preparing statement while retrieving credentials");
-        return rc;
+        return close_with_error(db, "Error preparing statement while retrieving credentials");
     }
 
     db::sqlite3_bind_text(stmt, 1, site, -1, null);

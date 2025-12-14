@@ -13,21 +13,26 @@ import db;
 const String DEFAULT_DB_NAME = "pwm_db.db";
 const String MASTER_DB_NAME  = "pwm_master_db.db";
 
-fn String get_secure_pw(ZString msg) {
+faultdef
+    SECURE_PW_TCGETATTR_FAILED,
+    SECURE_PW_TCSETATTR_FAILED,
+    SECURE_PW_FGETS_FAILED;
+
+fn String? get_secure_pw(ZString msg) {
     termios::Termios oflags, nflags;
     int fd = libc::STDIN_FD;
-    
+
     if (termios::tcgetattr(fd, &oflags) != 0) {
-        io::eprintf("tcgetattr failed");
-        libc::exit(1);
+        io::eprintfn("tcgetattr failed");
+        return SECURE_PW_TCGETATTR_FAILED?;
     }
 
     nflags = oflags;
     nflags.c_lflag &= ~termios::ECHO;
     nflags.c_lflag |= termios::ECHONL;
     if (termios::tcsetattr(fd, termios::TCSANOW, &nflags) != 0) {
-        io::eprintf("tcsetattr (disable echo) failed");
-        libc::exit(1);
+        io::eprintfn("tcsetattr (disable echo) failed");
+        return SECURE_PW_TCSETATTR_FAILED?;
     }
 
     defer {
@@ -42,7 +47,7 @@ fn String get_secure_pw(ZString msg) {
 
     if (libc::fgets(&buf[0], buf.len, libc::stdin()) == null) {
         io::eprintfn("fgets failed reading password");
-        libc::exit(1);
+        return SECURE_PW_FGETS_FAILED?;
     }
 
     String str_password = ((ZString) &buf[0]).str_view();
@@ -310,7 +315,11 @@ fn int main(String[] args) {
             return 1;
         }
 
-        String vault_pw = get_secure_pw("Enter vault password (64 char max): ");
+        String? vault_pw_result = get_secure_pw("Enter vault password (64 char max): ");
+        if (catch vault_pw_result) {
+            return 1;
+        }
+        String vault_pw = vault_pw_result;
         defer secure::wipe_string(vault_pw);
 
         if (vault::create_vault(vault_pw, init_db_path) != db::SQLITE_OK) {
@@ -383,11 +392,19 @@ fn int main(String[] args) {
         return 1;
     }
 
-    String vault_pw = get_secure_pw("Enter vault password (64 char max): ");
+    String? vault_pw_result = get_secure_pw("Enter vault password (64 char max): ");
+    if (catch vault_pw_result) {
+        return 1;
+    }
+    String vault_pw = vault_pw_result;
     defer secure::wipe_string(vault_pw);
 
     if (do_update) {
-        String cred_pw = get_secure_pw("Enter credential password (64 char max): ");
+        String? cred_pw_result = get_secure_pw("Enter credential password (64 char max): ");
+        if (catch cred_pw_result) {
+            return 1;
+        }
+        String cred_pw = cred_pw_result;
         defer secure::wipe_string(cred_pw);
         if (vault::update_credentials(
                 vault_pw,
