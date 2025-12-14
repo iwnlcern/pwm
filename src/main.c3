@@ -2,7 +2,7 @@ module pwm;
 
 import std::io;
 import std::io::path;
-import libc;
+import libc
 import misc::argparse;
 import misc::termios;
 import misc::secure;

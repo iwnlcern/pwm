@@ -2,7 +2,6 @@ module pwm::vault;
 import std::io;
 import std::io::path;
 import db;
-import libc;
 
 import misc::secure;
 const int MAX_DB_NUM = 32;
