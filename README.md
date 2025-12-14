@@ -91,3 +91,7 @@ Examples:
 - Master registry lives at `~/Documents/pwm/pwm_master_db`, only stores vault names/paths, and is unencrypted.
 - Encryption relies on SQLCipher via `sqlite3_key`; integrity is checked with `PRAGMA cipher_integrity_check`.
 - Clipboard clearing is best-effort via a background process; behavior depends on OS clipboard tooling being present.
+
+## Acknowledgements
+- Codex and Claude for documentation (I cba to write, easier to read and verify) and boiler-plate.
+- Alex Veden (<i@alexveden.com>) for argparse.c3 original src.
