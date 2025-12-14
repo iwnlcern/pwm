@@ -1,4 +1,4 @@
-# PWM (lightweight password manager written in C3)
+# PWM (lightweight C3 password manager)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C3](https://img.shields.io/badge/C3-0.7.7-orange.svg)](https://c3-lang.org)
