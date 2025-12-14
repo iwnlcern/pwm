@@ -151,7 +151,7 @@ fn int register_database(ZString master_db,
         return rc;
     }
 
-    db::sqlite3_bind_text(check_stmt, 1, (ZString) db_name, -1, null);
+    db::sqlite3_bind_text(check_stmt, 1, db_name.zstr_tcopy(), -1, null);
 
     String db_path_str = db_path.str_view();
     bool has_conflict = false;
@@ -179,7 +179,7 @@ fn int register_database(ZString master_db,
             return rc;
         }
 
-        db::sqlite3_bind_text(check_stmt, 1, (ZString) db_name, -1, null);
+        db::sqlite3_bind_text(check_stmt, 1, db_name.zstr_tcopy(), -1, null);
 
         io::eprintfn("Name conflict for '%s'. The following databases share this name:", db_name);
         while ((rc = db::sqlite3_step(check_stmt)) == db::SQLITE_ROW) {
@@ -213,7 +213,7 @@ fn int register_database(ZString master_db,
         return rc;
     }
 
-    db::sqlite3_bind_text(stmt, 1, (ZString) db_name, -1, null);
+    db::sqlite3_bind_text(stmt, 1, db_name.zstr_tcopy(), -1, null);
     db::sqlite3_bind_text(stmt, 2, db_path, -1, null);
 
     rc = db::sqlite3_step(stmt);
@@ -262,7 +262,7 @@ fn DbPathMatches lookup_database_paths(ZString master_db,
         return matches;
     }
 
-    db::sqlite3_bind_text(stmt, 1, (ZString) db_name, -1, null);
+    db::sqlite3_bind_text(stmt, 1, db_name.zstr_tcopy(), -1, null);
 
     while ((rc = db::sqlite3_step(stmt)) == db::SQLITE_ROW) {
         if (matches.len >= MAX_DB_NUM) {
@@ -406,7 +406,7 @@ fn int update_credentials(String master_pw,
                           ZString site,
                           ZString acct,
                           String  spw) {
-    ZString pw = (ZString) spw;
+    ZString pw = spw.zstr_tcopy();
     db::Sqlite3 *db;
     int rc = open(master_pw, filename, &db);
     ZString sql = (ZString)
