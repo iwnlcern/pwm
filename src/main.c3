@@ -176,13 +176,13 @@ fn int main(String[] args) {
 
             {
                 .long_name  = "init",
-                .value      = &do_init,      // bool
+                .value      = &do_init,
                 .help       = "Initializes or mounts a database. Do this first before using.",
             },
             {
                 .short_name = 'u',
                 .long_name  = "update",
-                .value      = &do_update,    // bool
+                .value      = &do_update,
                 .help       = "Add or update an entry. Use with --site and --user.",
             },
             {
@@ -194,13 +194,13 @@ fn int main(String[] args) {
             {
                 .short_name = 'r',
                 .long_name  = "remove",
-                .value      = &do_remove,    // bool
+                .value      = &do_remove,
                 .help       = "Removes an entry given site and username.",
             },
             {
                 .short_name = 'g',
                 .long_name  = "get",
-                .value      = &do_get,       // bool
+                .value      = &do_get,
                 .help       = "Retrieves username and password after master password check.",
             },
             {

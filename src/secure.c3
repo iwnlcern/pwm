@@ -39,7 +39,7 @@ fn void copy_to_clipboard(String s) {
                 (String[]) {"sh", "-lc", "command -v xclip"}
             ) ?? "";
             if (found.len > 0) {
-                cmds = (String[]) {"xclip"};
+                cmds = (String[]) {"xclip", "-selection", "clipboard"};
             }
         }
 
@@ -56,7 +56,8 @@ fn void copy_to_clipboard(String s) {
 }
 
 fn void schedule_clipboard_clear() {
-    // clear after 10 seconds via a background shell/PowerShell job.
+    // Clear clipboard after 10 seconds via a fully detached background process.
+    // The shell spawns a subshell that does the sleep+clear, then exits immediately.
     String[] cmds;
 
     $if core::env::WIN32:
@@ -68,13 +69,13 @@ fn void schedule_clipboard_clear() {
         };
     $endif
     $if core::env::os_is_darwin():
-        cmds = (String[]) {"sh", "-c", "sleep 10; printf '' | pbcopy &"};
+        cmds = (String[]) {"sh", "-c", "(sleep 10; printf '' | pbcopy) >/dev/null 2>&1 &"};
     $endif
     $if core::env::LINUX:
         cmds = (String[]) {
             "sh",
             "-c",
-            "sleep 10; printf '' | wl-copy >/dev/null 2>&1 || printf '' | xclip >/dev/null 2>&1 &"
+            "(sleep 10; printf '' | wl-copy 2>/dev/null || printf '' | xclip -selection clipboard 2>/dev/null) &"
         };
     $endif
 
@@ -83,7 +84,6 @@ fn void schedule_clipboard_clear() {
     }
 
     process::SubProcess p = process::create(cmds)!!;
-    (void)p.join()!!;
     p.destroy();
 }
 

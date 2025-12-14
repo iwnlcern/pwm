@@ -20,9 +20,10 @@ struct ClosestDbMatch {
 
 extern fn int sqlite3_key(db::Sqlite3 *db, void *key, int key_len);
 
-fn int close_with_error(db::Sqlite3 *db, String msg) @local {
-    io::eprintf("%s: %s\n", msg, db::sqlite3_errmsg(db));
-    db::sqlite3_close(db);
+fn int close_with_error(db::Sqlite3 **db, String msg) @local {
+    io::eprintf("%s: %s\n", msg, db::sqlite3_errmsg(*db));
+    db::sqlite3_close(*db);
+    *db = null;
     return db::SQLITE_ERROR;
 }
 
@@ -30,6 +31,8 @@ fn int open_plain(ZString filename, db::Sqlite3 **db) @local {
     int rc = db::sqlite3_open(filename, db);
     if (rc) {
         io::eprintf("Can't open database: %s\n", db::sqlite3_errmsg(*db));
+        db::sqlite3_close(*db);
+        *db = null;
         return rc;
     }
     return rc;
@@ -43,6 +46,8 @@ fn int open(String master_pw,
 
     if (rc) {
         io::eprintf("Can't open database: %s\n", db::sqlite3_errmsg(*db));
+        db::sqlite3_close(*db);
+        *db = null;
         return rc;
     }
 
@@ -50,6 +55,9 @@ fn int open(String master_pw,
     int key_len = (int) master_pw.len;
 
     rc = sqlite3_key(*db, key_ptr, key_len);
+    if (rc != db::SQLITE_OK) {
+        return close_with_error(db, "Failed to set encryption key");
+    }
 
     ZString check_sql = "PRAGMA cipher_integrity_check;";
     ZString err_msg = null;
@@ -60,7 +68,7 @@ fn int open(String master_pw,
             io::eprintf("Wrong password or corrupt DB: %s\n", err_msg);
             db::sqlite3_free(err_msg);
         }
-        return close_with_error(*db, "Wrong password");
+        return close_with_error(db, "Wrong password");
     }
 
     // Overwrite deleted content with zeros to prevent recovery of old records
@@ -81,6 +89,9 @@ fn int create_vault(String master_pw, ZString filename) {
     db::Sqlite3 *db = null;
 
     int rc = open(master_pw, filename, &db);
+    if (rc != db::SQLITE_OK) {
+        return rc;
+    }
 
     ZString sql = (ZString)
         "CREATE TABLE IF NOT EXISTS passwords ("
@@ -94,7 +105,7 @@ fn int create_vault(String master_pw, ZString filename) {
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(db, "Error preparing sql statement while creating table");
+        return close_with_error(&db, "Error preparing sql statement while creating table");
     }
 
     rc = db::sqlite3_step(stmt);
@@ -115,6 +126,9 @@ fn int ensure_master_registry(ZString filename) {
     db::Sqlite3 *db = null;
 
     int rc = open_plain(filename, &db);
+    if (rc != db::SQLITE_OK) {
+        return rc;
+    }
 
     ZString sql = (ZString)
         "CREATE TABLE IF NOT EXISTS tracked_databases ("
@@ -128,7 +142,7 @@ fn int ensure_master_registry(ZString filename) {
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(db, "Error preparing statement while creating registry");
+        return close_with_error(&db, "Error preparing statement while creating registry");
     }
 
     rc = db::sqlite3_step(stmt);
@@ -148,6 +162,9 @@ fn int register_database(ZString master_db,
                          ZString db_path) {
     db::Sqlite3 *db = null;
     int rc = open_plain(master_db, &db);
+    if (rc != db::SQLITE_OK) {
+        return rc;
+    }
 
     // Allow duplicate names at different paths - conflict is only checked
     // when using --db-name for lookup (not --db-path).
@@ -162,7 +179,7 @@ fn int register_database(ZString master_db,
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(db, "Error preparing statement while registering database");
+        return close_with_error(&db, "Error preparing statement while registering database");
     }
 
     db::sqlite3_bind_text(stmt, 1, db_name.zstr_tcopy(), -1, null);
@@ -210,7 +227,7 @@ fn DbPathMatches lookup_database_paths(ZString master_db,
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        (void)close_with_error(db, "Error preparing statement while loading tracked database");
+        (void)close_with_error(&db, "Error preparing statement while loading tracked database");
         return matches;
     }
 
@@ -276,13 +293,16 @@ fn ClosestDbMatch closest_database_match(ZString master_db,
 fn int prune_missing_databases(ZString master_db) {
     db::Sqlite3 *db = null;
     int rc = open_plain(master_db, &db);
+    if (rc != db::SQLITE_OK) {
+        return rc;
+    }
 
     ZString sql = (ZString)
         "SELECT path FROM tracked_databases";
     db::Sqlite3Stmt *stmt = null;
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(db, "Error preparing statement while pruning registry");
+        return close_with_error(&db, "Error preparing statement while pruning registry");
     }
 
     ZString del_sql = (ZString)
@@ -290,7 +310,8 @@ fn int prune_missing_databases(ZString master_db) {
     db::Sqlite3Stmt *del_stmt = null;
     rc = db::sqlite3_prepare_v2(db, del_sql, -1, &del_stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(db, "Error preparing delete statement while pruning registry");
+        db::sqlite3_finalize(stmt);
+        return close_with_error(&db, "Error preparing delete statement while pruning registry");
     }
 
     while ((rc = db::sqlite3_step(stmt)) == db::SQLITE_ROW) {
@@ -358,8 +379,12 @@ fn int update_credentials(String master_pw,
                           String  spw) {
     // Use original String pointer with explicit length - no extra copy to avoid
     // leaving unwiped password data in memory. Caller is responsible for wiping spw.
-    db::Sqlite3 *db;
+    db::Sqlite3 *db = null;
     int rc = open(master_pw, filename, &db);
+    if (rc != db::SQLITE_OK) {
+        return rc;
+    }
+
     ZString sql = (ZString)
         "INSERT INTO passwords (site, username, password)"
         "VALUES( ?1, ?2, ?3 )"
@@ -371,7 +396,7 @@ fn int update_credentials(String master_pw,
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(db, "Error preparing statement while modifying credentials");
+        return close_with_error(&db, "Error preparing statement while modifying credentials");
     }
 
     db::sqlite3_bind_text(stmt, 1, site, -1, null);
@@ -395,16 +420,20 @@ fn int remove_credentials(String master_pw,
                           ZString filename,
                           ZString site,
                           ZString acct) {
-    db::Sqlite3 *db;
+    db::Sqlite3 *db = null;
     int rc = open(master_pw, filename, &db);
+    if (rc != db::SQLITE_OK) {
+        return rc;
+    }
+
     ZString sql = (ZString)
         "DELETE FROM passwords WHERE site == ?1 AND username == ?2";
 
     db::Sqlite3Stmt *stmt = null;
-    
+
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(db, "Error preparing statement while deleting credentials");
+        return close_with_error(&db, "Error preparing statement while deleting credentials");
     }
 
     db::sqlite3_bind_text(stmt, 1, site, -1, null);
@@ -426,15 +455,19 @@ fn int return_credentials(String master_pw,
                           ZString filename,
                           ZString site,
                           ZString acct) {
-    db::Sqlite3 *db;
+    db::Sqlite3 *db = null;
     int rc = open(master_pw, filename, &db);
+    if (rc != db::SQLITE_OK) {
+        return rc;
+    }
+
     ZString sql = (ZString)
         "SELECT site, username, password FROM passwords WHERE site = ?1 AND username = ?2";
-    db::Sqlite3Stmt *stmt;
+    db::Sqlite3Stmt *stmt = null;
 
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(db, "Error preparing statement while retrieving credentials");
+        return close_with_error(&db, "Error preparing statement while retrieving credentials");
     }
 
     db::sqlite3_bind_text(stmt, 1, site, -1, null);
