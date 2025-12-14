@@ -164,7 +164,7 @@ fn int main(String[] args) {
     argparse::ArgParse agp = {
         .description = "Simple, lightweight cross-platform CLI password manager written in C3.",
         .usage       = "[--init|--update|--remove|--get] [--site <site>] [--user <user>] [--db-name <name>|--db-path <path>|<db-path>]",
-        .epilog      = "Run --init once to create a database (default: ~/Documents/pwm/pwm_db.db); append --db-name or --db-path to access exact db. Note, all passwords must fit within 64 characters."
+        .epilog      = "Run --init once to create a database (default: ~/Documents/pwm/pwm_db.db); append --db-name or --db-path to access exact db. Note, all passwords must fit within 64 characters.",
         .options     = {
             argparse::help_opt(),
             argparse::group_opt("Basic options"),
@@ -382,7 +382,7 @@ fn int main(String[] args) {
                 db_path,
                 credentials.site.zstr_tcopy(),
                 credentials.user.zstr_tcopy(),
-                cred_pw.zstr_tcopy()) != db::SQLITE_OK) {
+                cred_pw) != db::SQLITE_OK) {
             return 1;
         }
         if (vault::register_database(master_db_path, selected_db_name, db_path) != db::SQLITE_OK) {

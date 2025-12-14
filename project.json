@@ -1,7 +1,17 @@
 {
   "langrev": "1",
   "warnings":  [ "no-unused" ],
-  "linker-search-paths":  [ "/opt/homebrew/opt/sqlcipher/lib" ],
+  "linker-search-paths":  [
+    "/opt/homebrew/opt/sqlcipher/lib",
+    "/usr/local/opt/sqlcipher/lib",
+    "/usr/local/lib",
+    "/usr/lib",
+    "/usr/lib/x86_64-linux-gnu",
+    "/usr/lib/aarch64-linux-gnu",
+    "C:/vcpkg/installed/x64-windows/lib",
+    "C:/msys64/mingw64/lib",
+    "C:/Program Files/sqlcipher/lib"
+  ],
   "linked-libraries":  [ "sqlcipher" ],
   "authors":  [ "Jack Li <li.jack.services@gmail.com>" ],
   "version": "0.1.0",
