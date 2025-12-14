@@ -1,13 +1,13 @@
-# PWM (C3 password manager)
+# PWM (lightweight password manager written in C3)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C3](https://img.shields.io/badge/C3-0.7.7-orange.svg)](https://c3-lang.org)
 
-<<<<<<< HEAD
-Simple, lightweight CLI password manager written in C3. It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db.db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds. Note that this is best protected against shoulder peeking, screen recorders, and other unsophisticated attack methods. No guarantees against advanced attack methods like memory dumps and the such; minimal protection given by ensuring memory holding passwords and other confidential information is cleared by zeroing out; however, passwords may still persist in clipboard history. I am not aware of any software workarounds that can output passwords in a more secure manner. **It goes without saying that if someone wants your data bad enough, they will be able to find a way to get it.** ***USE AT YOUR OWN RISK.***
-=======
-Simple, lightweight, cross-platform CLI password manager written in C3. It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db.db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds.
->>>>>>> e8534678126296085a49809bce3504e689830858
+Simple, lightweight CLI password manager written in C3. It stores credentials in encrypted SQLite databases (SQLCipher) under `~/Documents/pwm/` by default (e.g., `pwm_db.db`), lets you point to custom locations, and copies retrieved passwords to your clipboard with an auto-clear after 10 seconds. 
+
+Note that PWM is best protected against shoulder peeking, screen recorders, and other unsophisticated attack methods. No guarantees against advanced attack methods like memory dumps and the such; minimal protection given by ensuring memory holding passwords and other confidential information is cleared by zeroing out; however, passwords may still persist in clipboard history. I am not aware of any software workarounds that can output passwords in a more secure manner. The most secure option I can think of is having the database loaded into a thumbdrive and then use an offline device to view confidential information. This should provide sufficent security for most people.
+
+**It goes without saying that if someone wants your data bad enough, they will be able to find a way to get it.** ***USE AT YOUR OWN RISK.***
 
 ## Features
 - Create encrypted vaults backed by SQLCipher.
@@ -97,7 +97,7 @@ Examples:
 - Default vault path: `~/Documents/pwm/pwm_db.db` (override with `--db-name`/`--db-path`). Each vault has its own password; losing it means losing access to that vault.
 - Master registry lives at `~/Documents/pwm/pwm_master_db.db`, only stores vault names/paths, and is unencrypted.
 - Encryption relies on SQLCipher via `sqlite3_key`; integrity is checked with `PRAGMA cipher_integrity_check`.
-- Clipboard clearing is best-effort via a background process; behavior depends on OS clipboard tooling being present. **NOTE:** May still be present in clipboard history.
+- Clipboard clearing is best-effort via a background process; behavior depends on OS clipboard tooling being present. **NOTE: May still be present in clipboard history.**
 
 ## Contributing
 Contributions are welcome—see `CONTRIBUTING.md` for setup and PR guidance. Community expectations are covered in `CODE_OF_CONDUCT.md`. To report security issues privately, follow `SECURITY.md`.
