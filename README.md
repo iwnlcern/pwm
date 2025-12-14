@@ -92,6 +92,11 @@ Examples:
 - Encryption relies on SQLCipher via `sqlite3_key`; integrity is checked with `PRAGMA cipher_integrity_check`.
 - Clipboard clearing is best-effort via a background process; behavior depends on OS clipboard tooling being present.
 
+## TODOs:
+- Looking to display all usernames for a given site.
+- Maybe also store security questions and answers.
+- Perhaps a GUI interface sometime in the future when c3 is more mature.
+
 ## Acknowledgements
 - CODEX 5.1 and CLAUDE OPUS 4.5 for documentation (I cba to write, easier to read and verify) and boiler-plate.
 - Alex Veden (<i@alexveden.com>) for argparse.c3 original src and CODEX for updates.
