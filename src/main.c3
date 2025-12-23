@@ -392,12 +392,22 @@ fn int main(String[] args) {
         return 1;
     }
 
-    String? vault_pw_result = get_secure_pw("Enter vault password (64 char max): ");
-    if (catch vault_pw_result) {
+    String? vault_pw = get_secure_pw("Enter vault password (64 char max): ");
+    if (catch vault_pw) {
         return 1;
     }
-    String vault_pw = vault_pw_result;
     defer secure::wipe_string(vault_pw);
+
+    if (credentials.user == "") {
+        io::printf("No user account specified. Below are the users associated with this service:\n");
+        if (vault::return_users(
+            vault_pw,
+            db_path,
+            credentials.site.zstr_tcopy()) != db::SQLITE_OK) {
+            return 1;
+        }
+        return 0;
+    }
 
     if (do_update) {
         String? cred_pw_result = get_secure_pw("Enter credential password (64 char max): ");

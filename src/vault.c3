@@ -451,7 +451,7 @@ fn int remove_credentials(String master_pw,
     return db::SQLITE_OK;
 }
 
-fn int return_credentials(String master_pw,
+fn int return_users(String master_pw,
                           ZString filename,
                           ZString site) {
     db::Sqlite3 *db = null;
@@ -466,25 +466,25 @@ fn int return_credentials(String master_pw,
     
     rc = db::sqlite3_prepare_v2(db, sql, -1, &stmt, null);
     if (rc != db::SQLITE_OK) {
-        return close_with_error(&db, "Error preparing statement while retrieving credentials");
+        return close_with_error(&db, "Error preparing statement while retrieving users");
     }
     
     db::sqlite3_bind_text(stmt, 1, site, -1, null);
 
     rc = db::sqlite3_step(stmt);
     if (rc == db::SQLITE_DONE) {
-        io::printf("No credentials found for site \'%s\'.\n");
+        io::printf("No credentials found for service \'%s\'.\n", site);
     } else if (rc == db::SQLITE_ROW) {
-        io::printf("This database has the credentials for the following accounts:\n");
+        io::printf("This database has the credentials for the following accounts for the service \'%s\':\n", site);
         while (rc == db::SQLITE_ROW) {
-            io::printf("%s\n", db::sqlite3_column_text(stmt, 0));
+            io::printf("%s\n", db::sqlite3_column_text(stmt, 1));
             rc = db::sqlite3_step(stmt);
         }
         if (rc != db::SQLITE_DONE) {
-            return close_with_error(&db, "Error stepping while retrieving credentials");
+            return close_with_error(&db, "Error stepping while retrieving users");
         }
     } else {
-            return close_with_error(&db, "Error stepping while retrieving credentials");
+            return close_with_error(&db, "Error stepping while retrieving users");
     }
 
     int rc_finalize = db::sqlite3_finalize(stmt);
@@ -492,7 +492,7 @@ fn int return_credentials(String master_pw,
     db::sqlite3_close(db);
 
     if (rc_finalize != db::SQLITE_OK) {
-        io::eprintf("Error finalizing or executing statement while retrieving credentials");
+        io::eprintf("Error finalizing or executing statement while retrieving users");
         return rc;
     }
 
